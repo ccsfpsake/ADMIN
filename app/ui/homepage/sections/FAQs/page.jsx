@@ -2,17 +2,14 @@
 
 import { useEffect, useState } from "react";
 import { db } from "@/app/lib/firebaseConfig";
-import { doc, getDoc, onSnapshot } from "firebase/firestore";
+import { doc, getDoc } from "firebase/firestore";
 import { BiChevronDown, BiChevronUp } from "react-icons/bi";
-import { FaFacebook, FaInstagram, FaYoutube } from "react-icons/fa";
-import { MdEmail, MdPhone } from "react-icons/md";
 import styles from "./FAQs.module.css";
-import Image from "next/image"; // ✅ Import Next.js Image
+import Image from "next/image";
 
 const FAQs = () => {
   const [faqs, setFaqs] = useState([]);
   const [expanded, setExpanded] = useState(null);
-  const [socialLinks, setSocialLinks] = useState({});
 
   useEffect(() => {
     const fetchFAQs = async () => {
@@ -36,15 +33,6 @@ const FAQs = () => {
     };
 
     fetchFAQs();
-
-    const socialDocRef = doc(db, "Setting", "Social Media Accounts");
-    const unsubscribe = onSnapshot(socialDocRef, (docSnap) => {
-      if (docSnap.exists()) {
-        setSocialLinks(docSnap.data());
-      }
-    });
-
-    return () => unsubscribe();
   }, []);
 
   const toggleFAQ = (index) => {
@@ -107,81 +95,6 @@ const FAQs = () => {
           </div>
         ))}
       </div>
-
-      {Object.keys(socialLinks).length > 0 && (
-        <div className={styles.contactBox}>
-          <p className={styles.contactText}>
-            If you have more questions, feel free to reach us through:
-          </p>
-          <ul className={styles.socialLinks}>
-            {socialLinks.Facebook && (
-              <li>
-                <a
-                  href={socialLinks.Facebook}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                >
-                  <FaFacebook
-                    style={{ color: "#1877F2" }}
-                    className={styles.socialIcon}
-                  />{" "}
-                  Facebook
-                </a>
-              </li>
-            )}
-            {socialLinks.Instagram && (
-              <li>
-                <a
-                  href={socialLinks.Instagram}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                >
-                  <FaInstagram
-                    style={{ color: "#E1306C" }}
-                    className={styles.socialIcon}
-                  />{" "}
-                  Instagram
-                </a>
-              </li>
-            )}
-            {socialLinks.YouTube && (
-              <li>
-                <a
-                  href={socialLinks.YouTube}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                >
-                  <FaYoutube
-                    style={{ color: "#FF0000" }}
-                    className={styles.socialIcon}
-                  />{" "}
-                  YouTube
-                </a>
-              </li>
-            )}
-          </ul>
-
-          {socialLinks.Email && (
-            <div className={styles.contactRow}>
-              <MdEmail
-                style={{ color: "#EA4335" }}
-                className={styles.socialIcon}
-              />
-              <span>Email us at: {socialLinks.Email}</span>
-            </div>
-          )}
-
-          {socialLinks.Phone && (
-            <div className={styles.contactRow}>
-              <MdPhone
-                style={{ color: "#34A853" }}
-                className={styles.socialIcon}
-              />
-              <span>Call or text us at: {socialLinks.Phone}</span>
-            </div>
-          )}
-        </div>
-      )}
     </section>
   );
 };
