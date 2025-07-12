@@ -266,7 +266,7 @@ return (
         </div>
         <div className={styles.companyGrid}>
           {filteredCompanies.length === 0 ? (
-            <p className={styles.noData}>No active reports available.</p>
+            <p className={styles.noData}>Loading reports...</p>
           ) : (
             filteredCompanies.map((company) => (
               <div

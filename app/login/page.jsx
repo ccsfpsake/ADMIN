@@ -31,7 +31,7 @@ const LoginPage = () => {
       if (querySnapshot.empty) {
         toast.error("No user found with this email.", {
           position: "top-right",
-          autoClose: 3000,
+          autoClose: 2000,
           theme: "colored",
         });
         setLoading(false);
@@ -43,7 +43,7 @@ const LoginPage = () => {
       if (adminData.Status === "Pending") {
         toast.warning("Your account is pending approval.", {
           position: "top-right",
-          autoClose: 3000,
+          autoClose: 2000,
           theme: "colored",
         });
         setLoading(false);
@@ -53,7 +53,7 @@ const LoginPage = () => {
       if (adminData.Status === "Suspended") {
         toast.error("Your account has been suspended. Please contact support at ccsfpsake@gmail.com", {
           position: "top-right",
-          autoClose: 3000,
+          autoClose: 2000,
           theme: "colored",
         });
         setLoading(false);
@@ -76,7 +76,7 @@ const LoginPage = () => {
 
       toast.error(errorMessage, {
         position: "top-right",
-        autoClose: 3000,
+        autoClose: 2000,
         theme: "colored",
       });
 
