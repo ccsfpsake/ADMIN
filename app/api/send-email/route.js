@@ -26,7 +26,7 @@ export async function POST(request) {
             <p><strong>Email:</strong> ${to}</p>
             <p><strong>Password:</strong> ${otp}</p>
             <div style="margin: 20px 0;">
-              <a href="https://yourwebsite.com/login" 
+              <a href="https://operator-vert-alpha.vercel.app" 
                  style="display: inline-block; background-color:rgb(40, 55, 167); color: #ffffff; padding: 10px 20px; text-decoration: none; border-radius: 5px;">
                  Go to your profile page
               </a>
@@ -107,7 +107,7 @@ export async function POST(request) {
           <p>Great news! Your operator account has been verified.</p>
           <p>You now have full access to SAKE's account.</p>
           <div style="margin: 20px 0;">
-            <a href="https://operator-vert-alpha.vercel.app/" 
+            <a href="https://operator-vert-alpha.vercel.app/login/" 
                style="display: inline-block; background-color:rgb(40, 55, 167); color: #ffffff; padding: 10px 20px; text-decoration: none; border-radius: 5px;">
                Log in to your operator account
             </a>
