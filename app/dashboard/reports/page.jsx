@@ -386,7 +386,7 @@ return (
               </div>
               <div className={styles.chatBox}>
                 {messages.length === 0 ? (
-                  <div className={styles.noMessages}>No messages yet.</div>
+                  <div className={styles.noData}>No messages yet. Start a conversation ....</div>
                 ) : (
                   messages.map((msg, i) => {
                     const prev = messages[i - 1];
