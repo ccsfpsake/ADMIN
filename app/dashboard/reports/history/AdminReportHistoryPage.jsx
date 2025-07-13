@@ -240,7 +240,7 @@ const AdminReportHistoryPage = () => {
             ) : (
               messages.map((msg, i) => {
                 const prev = messages[i - 1];
-                const isOperator = msg.senderRole === "operator";
+                const isAdmin = msg.senderRole === "admin";
                 return (
                   <div key={msg.id}>
                     {shouldShowDate(msg.createdAt, prev?.createdAt) && (
@@ -255,7 +255,7 @@ const AdminReportHistoryPage = () => {
                     )}
                     <div
                       className={`${styles.messageRow} ${
-                        isOperator ? styles.right : styles.left
+                        isAdmin ? styles.right : styles.left
                       }`}
                       onClick={() => toggleTimestamp(msg.id)}
                     >

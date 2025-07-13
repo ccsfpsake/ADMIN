@@ -11,6 +11,7 @@ import {
   updateDoc,
   setDoc,
 } from "firebase/firestore";
+import { getStorage, ref, uploadBytes, getDownloadURL } from "firebase/storage"; // ✅ ADD
 import { db } from "@/app/lib/firebaseConfig";
 import moment from "moment";
 import styles from "./chatbox.module.css";
@@ -85,12 +86,37 @@ const ChatBoxOperator = ({ companyID }) => {
     if ((!newMessage.trim() && !file) || !companyID) return;
     const messagesRef = collection(db, "Chat", companyID, "messages");
 
+    let imageUrl = "";
+    let docUrl = "";
+    let filename = "";
+
+    // ✅ Upload to Firebase Storage if file exists
+    if (file) {
+      try {
+        const storage = getStorage();
+        const filePath = `chat_files/${companyID}/${Date.now()}_${file.name}`;
+        const fileRef = ref(storage, filePath);
+        await uploadBytes(fileRef, file);
+        const downloadURL = await getDownloadURL(fileRef);
+
+        if (fileType === "image") {
+          imageUrl = downloadURL;
+        } else {
+          docUrl = downloadURL;
+          filename = file.name;
+        }
+      } catch (error) {
+        console.error("File upload failed:", error);
+        return;
+      }
+    }
+
     const newMsg = {
       text: newMessage,
-      imageUrl: fileType === "image" ? preview : "",
-      docUrl: fileType === "document" ? preview : "",
-      filename: fileType === "document" ? file.name : "",
-      senderRole: "operator", 
+      imageUrl,
+      docUrl,
+      filename,
+      senderRole: "operator",
       createdAt: serverTimestamp(),
       seen: false,
       status: "sending",
@@ -146,18 +172,18 @@ const ChatBoxOperator = ({ companyID }) => {
                 <div className={styles.messageBubble}>
                   {msg.text && <p>{msg.text}</p>}
                   {msg.imageUrl && (
-                  <Image
-                    src={msg.imageUrl}
-                    alt="Message Image"
-                    width={300}
-                    height={200}
-                    className={styles.media}
-                    onClick={() => {
-                      setModalSrc(msg.imageUrl);
-                      setModalType("image");
-                    }}
-                  />
-
+                    <Image
+                      src={msg.imageUrl}
+                      alt="Message Image"
+                      width={300}
+                      height={200}
+                      className={styles.media}
+                      onClick={() => {
+                        setModalSrc(msg.imageUrl);
+                        setModalType("image");
+                      }}
+                      unoptimized
+                    />
                   )}
                   {msg.docUrl && (
                     <div className={styles.docContainer}>
@@ -189,16 +215,13 @@ const ChatBoxOperator = ({ companyID }) => {
       </div>
 
       <div className={styles.inputArea}>
-        <button className={styles.addButton} onClick={() => fileInputRef.current.click()}>
-          +
-        </button>
+        <button className={styles.addButton} onClick={() => fileInputRef.current.click()}>+</button>
         <textarea
           value={newMessage}
           onChange={(e) => setNewMessage(e.target.value)}
           placeholder="Type a message..."
           rows={1}
         />
-
         <input
           type="file"
           accept="image/*,application/pdf,.doc,.docx"
@@ -215,14 +238,7 @@ const ChatBoxOperator = ({ companyID }) => {
         <div className={styles.modalOverlay} onClick={() => setModalSrc(null)}>
           <div className={styles.modalContent} onClick={(e) => e.stopPropagation()}>
             {modalType === "image" ? (
-              <Image
-              src={modalSrc}
-              alt="Full View"
-              width={800}
-              height={600}
-              className={styles.fullMedia}
-            />
-
+              <Image src={modalSrc} alt="Full View" width={800} height={600} className={styles.fullMedia} unoptimized />
             ) : (
               <iframe src={modalSrc} className={styles.fullMedia} title="Document Preview" />
             )}
@@ -247,14 +263,7 @@ const ChatBoxOperator = ({ companyID }) => {
       {preview && (
         <div className={styles.previewAttachment}>
           {fileType === "image" ? (
-            <Image
-            src={preview}
-            alt="Preview"
-            width={150}
-            height={100}
-            className={styles.preview}
-          />
-
+            <Image src={preview} alt="Preview" width={150} height={100} className={styles.preview} unoptimized />
           ) : (
             <p>{file.name}</p>
           )}
@@ -275,5 +284,3 @@ const ChatBoxOperator = ({ companyID }) => {
 };
 
 export default ChatBoxOperator;
-
-

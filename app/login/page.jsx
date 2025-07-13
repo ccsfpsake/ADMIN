@@ -18,6 +18,7 @@ const LoginPage = () => {
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const router = useRouter();
+  const [passwordError, setPasswordError] = useState("");
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -73,12 +74,9 @@ const LoginPage = () => {
       } else if (error.code === "auth/wrong-password") {
         errorMessage = "Password is incorrect. Please try again.";
       }
+      
+      setPasswordError(errorMessage);
 
-      toast.error(errorMessage, {
-        position: "top-right",
-        autoClose: 2000,
-        theme: "colored",
-      });
 
       setLoading(false);
     }
@@ -117,10 +115,15 @@ const LoginPage = () => {
               id="password"
               className={styles.input}
               value={password}
-              onChange={(e) => setPassword(e.target.value)}
+              onChange={(e) => {
+                setPassword(e.target.value);
+                setPasswordError(""); 
+              }}
               required
             />
+            {passwordError && <p className={styles.error}>{passwordError}</p>}
           </div>
+
           <button type="submit" className={styles.button} disabled={loading}>
             {loading ? (
               <>

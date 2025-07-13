@@ -137,56 +137,61 @@ const BusStopsPage = ({ lineId }) => {
     setShowEditModal(true);
   };
 
-  const handleSaveEdit = async () => {
-    const { locID, name, latitude, longitude } = editStop;
+    const handleSaveEdit = async () => {
+      if (!editStop) return;
 
-    const nameStr = String(name).trim();
-    const latStr = String(latitude).trim();
-    const lngStr = String(longitude).trim();
+      const { locID, name, latitude, longitude } = editStop;
 
-    if (!nameStr || !latStr || !lngStr) {
-      toast.error("Please fill in all fields.");
-      return;
-    }
+      // Trim and validate fields
+      const nameStr = String(name).trim();
+      const latStr = String(latitude).trim();
+      const lngStr = String(longitude).trim();
 
-    const latNum = parseFloat(latStr);
-    const lngNum = parseFloat(lngStr);
+      // Check for empty fields
+      if (!nameStr || !latStr || !lngStr) {
+        toast.error("All fields are required. Please fill them out.");
+        return;
+      }
 
-    if (isNaN(latNum) || isNaN(lngNum)) {
-      toast.error("Latitude and Longitude must be valid numbers.");
-      return;
-    }
+      // Check if latitude and longitude are valid numbers
+      const latNum = parseFloat(latStr);
+      const lngNum = parseFloat(lngStr);
 
-    const original = busStops.find((stop) => stop.locID === locID);
+      if (isNaN(latNum) || isNaN(lngNum)) {
+        toast.error("Latitude and Longitude must be valid numbers.");
+        return;
+      }
 
-    const originalName = original?.name ?? "";
-    const originalLat = original?.geo?.latitude ?? null;
-    const originalLng = original?.geo?.longitude ?? null;
+      // Check if changes were actually made
+      const original = busStops.find((stop) => stop.locID === locID);
+      const originalName = original?.name ?? "";
+      const originalLat = original?.geo?.latitude ?? null;
+      const originalLng = original?.geo?.longitude ?? null;
 
-    if (
-      nameStr === originalName &&
-      latNum === originalLat &&
-      lngNum === originalLng
-    ) {
-      toast.info("No changes made.");
-      return;
-    }
+      if (
+        nameStr === originalName &&
+        latNum === originalLat &&
+        lngNum === originalLng
+      ) {
+        toast.info("No changes made.");
+        return;
+      }
 
-    try {
-      const stopRef = doc(db, "Bus Stops", lineId, "Stops", locID);
-      await setDoc(stopRef, {
-        locID,
-        name: nameStr,
-        geo: new GeoPoint(latNum, lngNum),
-      });
+      try {
+        const stopRef = doc(db, "Bus Stops", lineId, "Stops", locID);
+        await setDoc(stopRef, {
+          locID,
+          name: nameStr,
+          geo: new GeoPoint(latNum, lngNum),
+        });
 
-      toast.success("Stop updated successfully.");
-      setEditStop(null);
-      setShowEditModal(false);
-    } catch (error) {
-      toast.error("Failed to update stop.");
-    }
-  };
+        toast.success("Stop updated successfully.");
+        setEditStop(null);
+        setShowEditModal(false);
+      } catch (error) {
+        toast.error("Failed to update stop.");
+      }
+    };
 
   const toggleAddModal = (show) => {
     setShowAddModal(show);

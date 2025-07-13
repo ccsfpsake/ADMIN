@@ -24,9 +24,14 @@ const OperatorStatusSummary = () => {
       };
 
       snapshot.forEach((doc) => {
-        const status = doc.data().Status;
+        const data = doc.data();
+        const status = data.Status || "Pending"; // Default to "Pending" if undefined
+
         if (Object.prototype.hasOwnProperty.call(statusCounts, status)) {
           statusCounts[status]++;
+        } else {
+          // Optional: count unknown statuses as pending too
+          statusCounts["Pending"]++;
         }
       });
 
