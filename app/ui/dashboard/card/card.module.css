@@ -45,7 +45,6 @@
     flex-shrink: 0;
 }
 
-/* Responsive for smaller screens (below 600px) */
 @media (max-width: 600px) {
     .card {
         padding: 15px;
@@ -67,12 +66,9 @@
     }
 }
 
-/* Additional adjustments for extra small screens (320px) */
 @media (max-width: 320px) {
     .card {
         flex-direction: column;
-        align-items: center;
-        text-align: center;
         padding: 12px;
         gap: 8px;
     }

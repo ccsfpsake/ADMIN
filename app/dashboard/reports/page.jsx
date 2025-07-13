@@ -11,7 +11,8 @@ import {
   serverTimestamp,
   doc,
   updateDoc,
-  setDoc
+  setDoc,
+  limit 
 } from "firebase/firestore";
 import Link from "next/link";
 import { db } from "../../lib/firebaseConfig";
@@ -48,48 +49,84 @@ const AdminReportPage = () => {
   const chatEndRef = useRef(null);
   const typingTimeoutRef = useRef(null);
 
-  useEffect(() => {
-    const unsub = onSnapshot(collection(db, "busReports"), (snap) => {
-      const grouped = {};
-      const tempUnreadMap = {};
-      const unsubMessagesListeners = [];
+ useEffect(() => {
+  const unsubscribers = [];
+  const companyReportsMap = {};
 
-      snap.docs.forEach((docSnap) => {
-        const data = docSnap.data();
-        const companyID = data.companyID;
+  const unsub = onSnapshot(collection(db, "busReports"), (snapshot) => {
+    const reportsByCompany = {};
 
-        if (!grouped[companyID]) grouped[companyID] = [];
-        grouped[companyID].push({ id: docSnap.id, ...data });
+    // Group all reports per company
+    snapshot.docs.forEach((docSnap) => {
+      const reportId = docSnap.id;
+      const data = docSnap.data();
+      const companyID = data.companyID;
 
-        const messagesRef = collection(db, "busReports", docSnap.id, "messages");
+      if (!reportsByCompany[companyID]) reportsByCompany[companyID] = [];
+      reportsByCompany[companyID].push({ id: reportId, ...data });
 
-        const unsubMsg = onSnapshot(
-          query(messagesRef, where("senderRole", "==", "operator"), where("seen", "==", false)),
-          (msgSnap) => {
-            if (!msgSnap.empty || !data.adminSeen) {
-              tempUnreadMap[companyID] = true;
-            }
+      // Store report structure for checking later
+      if (!companyReportsMap[companyID]) companyReportsMap[companyID] = {};
+      companyReportsMap[companyID][reportId] = { data: null, latestMessage: null };
 
-            const allCompanyIDs = Object.keys(grouped);
-            setCompanyData(() =>
-              allCompanyIDs.map((id) => ({
-                id,
-                hasUnread: !!tempUnreadMap[id],
-              }))
-            );
-          }
-        );
+      // Listen to report document
+      const unsubReport = onSnapshot(doc(db, "busReports", reportId), (reportSnap) => {
+        const reportData = reportSnap.data();
+        companyReportsMap[companyID][reportId].data = reportData;
 
-        unsubMessagesListeners.push(unsubMsg);
+        checkUnreadPerCompany(companyReportsMap, reportsByCompany);
       });
 
-      return () => {
-        unsubMessagesListeners.forEach((unsub) => unsub());
-      };
+      // Listen to latest message
+      const messagesRef = collection(db, "busReports", reportId, "messages");
+      const unsubMsg = onSnapshot(
+        query(messagesRef, orderBy("createdAt", "desc"), limit(1)),
+        (msgSnap) => {
+          const lastMsg = msgSnap.docs[0]?.data();
+          companyReportsMap[companyID][reportId].latestMessage = lastMsg;
+
+          checkUnreadPerCompany(companyReportsMap, reportsByCompany);
+        }
+      );
+
+      unsubscribers.push(unsubReport);
+      unsubscribers.push(unsubMsg);
+    });
+  });
+
+  unsubscribers.push(unsub);
+
+  // Cleanup
+  return () => {
+    unsubscribers.forEach((unsub) => unsub());
+  };
+
+  // Checks if any report under a company is still unread
+  function checkUnreadPerCompany(companyReportsMap, reportsByCompany) {
+    const result = Object.keys(reportsByCompany).map((companyID) => {
+      const reports = companyReportsMap[companyID];
+      let hasUnread = false;
+
+      for (const reportID in reports) {
+        const r = reports[reportID];
+        if (!r.data) continue;
+
+        const adminSeen = r.data.adminSeen ?? false;
+        const msg = r.latestMessage;
+
+        const unread = !adminSeen || (msg?.senderRole === "operator" && !msg?.seen);
+        if (unread) {
+          hasUnread = true;
+          break;
+        }
+      }
+
+      return { id: companyID, hasUnread };
     });
 
-    return () => unsub();
-  }, []);
+    setCompanyData(result);
+  }
+}, []);
 
   const filteredCompanies = companyData
     .filter((c) => c.id.toLowerCase().includes(companySearch.toLowerCase()))
@@ -99,236 +136,256 @@ const AdminReportPage = () => {
       return a.id.localeCompare(b.id);
     });
 
-  useEffect(() => {
-    if (!selectedCompany) return;
+    useEffect(() => {
+      if (!selectedCompany) return;
 
-    const q = query(collection(db, "busReports"), where("companyID", "==", selectedCompany));
-    const unsubReports = onSnapshot(q, (snapshot) => {
-      const unsubMessageListeners = [];
+      const q = query(collection(db, "busReports"), where("companyID", "==", selectedCompany));
+      const unsubReports = onSnapshot(q, (snapshot) => {
+        const unsubMessageListeners = [];
+        const updatedReports = [];
 
-      const updatedReports = snapshot.docs.map((docSnap) => {
-        const data = docSnap.data();
-        const reportData = {
-          id: docSnap.id,
-          ...data,
-          hasUnreadMessages: !data.adminSeen, 
+        snapshot.docs.forEach((docSnap) => {
+          const data = docSnap.data();
+          const messagesRef = collection(db, "busReports", docSnap.id, "messages");
+
+          const unsub = onSnapshot(
+            query(messagesRef, orderBy("createdAt", "desc"), limit(1)),
+            (msgSnap) => {
+              const lastMessage = msgSnap.docs[0]?.data();
+              const latestTimestamp = lastMessage?.createdAt || data.createdAt || null;
+
+              const reportData = {
+                id: docSnap.id,
+                ...data,
+                latestActivity: latestTimestamp,
+                hasUnreadMessages: !data.adminSeen || (lastMessage?.senderRole === "operator" && !lastMessage.seen),
+              };
+
+              updatedReports.push(reportData);
+
+          setReports((prev) => {
+            const filtered = prev.filter((r) => r.id !== reportData.id);
+            const merged = [...filtered, reportData];
+
+            return merged.sort((a, b) => {
+
+              if (a.hasUnreadMessages && !b.hasUnreadMessages) return -1;
+              if (!a.hasUnreadMessages && b.hasUnreadMessages) return 1;
+
+              const timeA = a.latestActivity?.toMillis?.() || 0;
+              const timeB = b.latestActivity?.toMillis?.() || 0;
+              return timeB - timeA;
+            });
+          });
+
+            }
+          );
+
+          unsubMessageListeners.push(unsub);
+        });
+
+        return () => {
+          unsubMessageListeners.forEach((unsub) => unsub());
         };
-        const messagesRef = collection(db, "busReports", docSnap.id, "messages");
-
-        const unsub = onSnapshot(
-          query(messagesRef, where("senderRole", "==", "operator"), where("seen", "==", false)),
-          () => {}
-        );
-
-
-        unsubMessageListeners.push(unsub);
-        return reportData;
       });
 
-      setReports(updatedReports);
+      return () => unsubReports();
+    }, [selectedCompany]);
+
+    useEffect(() => {
+      if (!selectedReport) return;
+
+      // ✅ Mark report as seen by admin
+      const markReportSeen = async () => {
+        try {
+          await updateDoc(doc(db, "busReports", selectedReport.id), { adminSeen: true });
+          // ✅ Update local state to remove "unread" status
+          setReports((prev) =>
+            prev.map((r) =>
+              r.id === selectedReport.id ? { ...r, hasUnreadMessages: false } : r
+            )
+          );
+        } catch (err) {
+          console.error("Failed to mark adminSeen:", err);
+        }
+      };
+
+      markReportSeen();
+
+      const messagesRef = collection(db, "busReports", selectedReport.id, "messages");
+      const unsubMessages = onSnapshot(query(messagesRef, orderBy("createdAt", "asc")), (snapshot) => {
+        const fetched = snapshot.docs.map((docSnap) => ({ id: docSnap.id, ...docSnap.data() }));
+        setMessages(fetched);
+
+        fetched.forEach((msg) => {
+          if (!msg.seen && msg.senderRole === "operator") {
+            updateDoc(doc(db, "busReports", selectedReport.id, "messages", msg.id), { seen: true });
+          }
+        });
+      });
+
+      const typingRef = doc(db, "busReports", selectedReport.id, "typing", "operator");
+      const unsubTyping = onSnapshot(typingRef, (snap) => {
+        setOtherTyping(snap.exists() && snap.data().isTyping);
+      });
 
       return () => {
-        unsubMessageListeners.forEach((unsub) => unsub());
+        unsubMessages();
+        unsubTyping();
       };
-    });
+    }, [selectedReport]);
 
-    return () => unsubReports();
-  }, [selectedCompany]);
+      useEffect(() => {
+        chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
+      }, [messages]);
 
-useEffect(() => {
-  if (!selectedReport) return;
+      useEffect(() => {
+        if (!selectedReport) return;
+        const typingDoc = doc(db, "busReports", selectedReport.id, "typing", "admin");
 
-  // ✅ Mark report as seen by admin
-  const markReportSeen = async () => {
-    try {
-      await updateDoc(doc(db, "busReports", selectedReport.id), { adminSeen: true });
-      // ✅ Update local state to remove "unread" status
-      setReports((prev) =>
-        prev.map((r) =>
-          r.id === selectedReport.id ? { ...r, hasUnreadMessages: false } : r
-        )
-      );
-    } catch (err) {
-      console.error("Failed to mark adminSeen:", err);
-    }
-  };
+        if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
 
-  markReportSeen();
+        if (newMessage.trim().length > 0) {
+          setDoc(typingDoc, { isTyping: true });
+          typingTimeoutRef.current = setTimeout(() => setDoc(typingDoc, { isTyping: false }), 1000);
+        } else {
+          setDoc(typingDoc, { isTyping: false });
+        }
 
-  const messagesRef = collection(db, "busReports", selectedReport.id, "messages");
-  const unsubMessages = onSnapshot(query(messagesRef, orderBy("createdAt", "asc")), (snapshot) => {
-    const fetched = snapshot.docs.map((docSnap) => ({ id: docSnap.id, ...docSnap.data() }));
-    setMessages(fetched);
+        return () => {
+          if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
+        };
+      }, [newMessage, selectedReport]);
 
-    fetched.forEach((msg) => {
-      if (!msg.seen && msg.senderRole === "operator") {
-        updateDoc(doc(db, "busReports", selectedReport.id, "messages", msg.id), { seen: true });
-      }
-    });
-  });
+      const handleFileChange = (e) => {
+        const selected = e.target.files[0];
+        if (!selected) return;
+        fileInputRef.current.value = "";
+        const reader = new FileReader();
+        reader.onloadend = () => {
+          setPreview(reader.result);
+          setFileType(selected.type.startsWith("image/") ? "image" : "document");
+        };
+        reader.readAsDataURL(selected);
+        setFile(selected);
+      };
 
-  const typingRef = doc(db, "busReports", selectedReport.id, "typing", "operator");
-  const unsubTyping = onSnapshot(typingRef, (snap) => {
-    setOtherTyping(snap.exists() && snap.data().isTyping);
-  });
+      const sendMessage = async () => {
+        if ((!newMessage.trim() && !file) || !selectedReport) return;
+        const messagesRef = collection(db, "busReports", selectedReport.id, "messages");
+        const newMsg = {
+          text: newMessage,
+          imageUrl: fileType === "image" ? preview : "",
+          docUrl: fileType === "document" ? preview : "",
+          filename: fileType === "document" ? file.name : "",
+          senderRole: "admin",
+          senderID: localStorage.getItem("adminID"),
+          createdAt: serverTimestamp(),
+          seen: false,
+          status: "sending",
+        };
+        try {
+          const docRef = await addDoc(messagesRef, newMsg);
+          await updateDoc(docRef, { status: "delivered" });
+        } catch (err) {
+          console.error("Message failed to send:", err);
+        }
+        setNewMessage("");
+        setFile(null);
+        setPreview(null);
+        setFileType(null);
+      };
 
-  return () => {
-    unsubMessages();
-    unsubTyping();
-  };
-}, [selectedReport]);
+      const toggleTimestamp = (id) => {
+        setVisibleTimestamps((prev) =>
+          prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
+        );
+      };
 
-  useEffect(() => {
-    chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages]);
+      const formatDate = (ts) => moment(ts?.toDate()).format("MMMM D, YYYY");
+      const formatTime = (ts) => moment(ts?.toDate()).format("h:mm A");
+      const shouldShowDate = (current, previous) => {
+        if (!previous) return true;
+        return moment(current?.toDate()).format("YYYY-MM-DD") !== moment(previous?.toDate()).format("YYYY-MM-DD");
+      };
 
-  useEffect(() => {
-    if (!selectedReport) return;
-    const typingDoc = doc(db, "busReports", selectedReport.id, "typing", "admin");
-
-    if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
-
-    if (newMessage.trim().length > 0) {
-      setDoc(typingDoc, { isTyping: true });
-      typingTimeoutRef.current = setTimeout(() => setDoc(typingDoc, { isTyping: false }), 1000);
-    } else {
-      setDoc(typingDoc, { isTyping: false });
-    }
-
-    return () => {
-      if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
-    };
-  }, [newMessage, selectedReport]);
-
-  const handleFileChange = (e) => {
-    const selected = e.target.files[0];
-    if (!selected) return;
-    fileInputRef.current.value = "";
-    const reader = new FileReader();
-    reader.onloadend = () => {
-      setPreview(reader.result);
-      setFileType(selected.type.startsWith("image/") ? "image" : "document");
-    };
-    reader.readAsDataURL(selected);
-    setFile(selected);
-  };
-
-  const sendMessage = async () => {
-    if ((!newMessage.trim() && !file) || !selectedReport) return;
-    const messagesRef = collection(db, "busReports", selectedReport.id, "messages");
-    const newMsg = {
-      text: newMessage,
-      imageUrl: fileType === "image" ? preview : "",
-      docUrl: fileType === "document" ? preview : "",
-      filename: fileType === "document" ? file.name : "",
-      senderRole: "admin",
-      senderID: localStorage.getItem("adminID"),
-      createdAt: serverTimestamp(),
-      seen: false,
-      status: "sending",
-    };
-    try {
-      const docRef = await addDoc(messagesRef, newMsg);
-      await updateDoc(docRef, { status: "delivered" });
-    } catch (err) {
-      console.error("Message failed to send:", err);
-    }
-    setNewMessage("");
-    setFile(null);
-    setPreview(null);
-    setFileType(null);
-  };
-
-  const toggleTimestamp = (id) => {
-    setVisibleTimestamps((prev) =>
-      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
-    );
-  };
-
-  const formatDate = (ts) => moment(ts?.toDate()).format("MMMM D, YYYY");
-  const formatTime = (ts) => moment(ts?.toDate()).format("h:mm A");
-  const shouldShowDate = (current, previous) => {
-    if (!previous) return true;
-    return moment(current?.toDate()).format("YYYY-MM-DD") !== moment(previous?.toDate()).format("YYYY-MM-DD");
-  };
-
-return (
-  <div className={styles.container}>
-    {!selectedCompany ? (
-      <>
-        <div className={styles.top}>
-          <h2>Reports</h2>
-          <Search
-            placeholder="Search..."
-            value={companySearch}
-            onChange={(e) => setCompanySearch(e.target.value)}
-          />
-        </div>
-        <div className={styles.companyGrid}>
-          {filteredCompanies.length === 0 ? (
-            <p className={styles.noData}>Loading reports...</p>
-          ) : (
-            filteredCompanies.map((company) => (
-              <div
-                key={company.id}
-                className={styles.companyCard}
-                onClick={() => {
-                  setSelectedCompany(company.id);
-                  setSelectedReport(null);
-                }}
-              >
-                <p className={styles.companyID}>{company.id}</p>
-                {company.hasUnread && <span className={styles.notificationDot} />}
-              </div>
-            ))
-          )}
-        </div>
-
-      </>
-    ) : (
-        <>
-          <div className={styles.selectedCompanyLayout}>
-          <div className={styles.reportList}>
+    return (
+      <div className={styles.container}>
+        {!selectedCompany ? (
+          <>
             <div className={styles.top}>
-            <button
-              className={styles.backButton}
-              onClick={() => {
-                setSelectedCompany(null);
-                setSelectedReport(null); 
-              }}
-            >
-              <FaArrowLeftLong />
-          </button>
-                  <div className={styles.historyLinkContainer}>
-            <Link 
-            href={{
-              pathname: "/dashboard/reports/history",
-              query: { companyID: selectedCompany },
-            }}
-            className={styles.historyLink}
-          >
-            View History
-          </Link>
-        </div>
-        </div>
-    <h3>{selectedCompany}</h3>
-      {reports === null ? (
-        <p className={styles.loading}>Loading reports...</p>
-      ) : reports.filter((r) => r.status !== "settled").length === 0 ? (
-        <p className={styles.noData}>No pending reports available.</p>
-      ) : (
-        reports
-          .filter((report) => report.status === "pending")
-          .map((report) => (
-<div
-  key={report.id}
-  className={`
-    ${styles.reportItem}
-    ${report.hasUnreadMessages ? styles.unread : ""}
-    ${selectedReport?.id === report.id ? styles.selectedReport : ""}
-  `}
-  onClick={() => setSelectedReport(report)}
->
+              <h2>Reports</h2>
+              <Search
+                placeholder="Search..."
+                value={companySearch}
+                onChange={(e) => setCompanySearch(e.target.value)}
+              />
+            </div>
+            <div className={styles.companyGrid}>
+              {filteredCompanies.length === 0 ? (
+                <p className={styles.noData}>Loading reports...</p>
+              ) : (
+                filteredCompanies.map((company) => (
+                  <div
+                    key={company.id}
+                    className={styles.companyCard}
+                    onClick={() => {
+                      setSelectedCompany(company.id);
+                      setSelectedReport(null);
+                    }}
+                  >
+                    <p className={styles.companyID}>{company.id}</p>
+                    {company.hasUnread && <span className={styles.notificationDot} />}
+                  </div>
+                ))
+              )}
+            </div>
+
+          </>
+        ) : (
+            <>
+              <div className={styles.selectedCompanyLayout}>
+              <div className={styles.reportList}>
+                <div className={styles.top}>
+                <button
+                  className={styles.backButton}
+                  onClick={() => {
+                    setSelectedCompany(null);
+                    setSelectedReport(null); 
+                  }}
+                >
+                  <FaArrowLeftLong />
+              </button>
+                      <div className={styles.historyLinkContainer}>
+                <Link 
+                href={{
+                  pathname: "/dashboard/reports/history",
+                  query: { companyID: selectedCompany },
+                }}
+                className={styles.historyLink}
+              >
+                View History
+              </Link>
+            </div>
+            </div>
+        <h3>{selectedCompany}</h3>
+          {reports === null ? (
+            <p className={styles.loading}>Loading reports...</p>
+          ) : reports.filter((r) => r.status !== "settled").length === 0 ? (
+            <p className={styles.noData}>No pending reports available.</p>
+          ) : (
+            reports
+              .filter((report) => report.status === "pending")
+              .map((report) => (
+    <div
+      key={report.id}
+      className={`
+        ${styles.reportItem}
+        ${report.hasUnreadMessages ? styles.unread : ""}
+        ${selectedReport?.id === report.id ? styles.selectedReport : ""}
+      `}
+      onClick={() => setSelectedReport(report)}
+    >
 
               <p><strong>Plate:</strong> {report.busPlateNumber}</p>
               <p><strong>Type:</strong> {report.reportType}</p>
@@ -363,6 +420,7 @@ return (
                   <h3>Plate Number: {selectedReport.busPlateNumber}</h3>
                   <p><strong>Type:</strong> {selectedReport.reportType}</p>
                   <p><strong>Description:</strong> {selectedReport.description}</p>
+                  <p><strong>Date:</strong> {formatDate(selectedReport.createdAt)}</p>
                 </div>
                 
                   {selectedReport.imageUrl && (

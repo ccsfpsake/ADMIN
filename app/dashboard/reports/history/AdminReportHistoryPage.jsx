@@ -214,6 +214,7 @@ const AdminReportHistoryPage = () => {
                 <p>
                   <strong>Description:</strong> {selectedReport.description}
                 </p>
+                <p><strong>Date:</strong> {formatDate(selectedReport.createdAt)}</p>
               </div>
               {selectedReport.imageUrl && (
                 <div className={styles.reportImage}>
