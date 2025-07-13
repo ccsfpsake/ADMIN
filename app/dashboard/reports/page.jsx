@@ -598,6 +598,7 @@
 
 // export default AdminReportPage;
 
+/* global Promise */
 "use client";
 
 import { useEffect, useRef, useState } from "react";
@@ -735,7 +736,7 @@ const AdminReportPage = () => {
 
       setCompanyData(result);
     }
-}, [selectedReport?.id, messages]);
+}, [selectedCompany, selectedReport?.id, messages]);
 
 
 
