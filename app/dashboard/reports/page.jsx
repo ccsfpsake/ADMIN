@@ -394,17 +394,26 @@ const AdminReportPage = () => {
                 <button
                   className={styles.settledButton}
                   onClick={async (e) => {
-                    e.stopPropagation(); 
+                    e.stopPropagation();
                     try {
                       const reportRef = doc(db, "busReports", report.id);
                       await updateDoc(reportRef, { status: "settled" });
-                      setSelectedReport((prev) => ({ ...prev, status: "settled" }));
+
+                      // Remove chat section by unselecting report
+                      setSelectedReport(null);
+
+                      // Optional: Also update the reports list immediately
+                      setReports((prev) =>
+                        prev.map((r) =>
+                          r.id === report.id ? { ...r, status: "settled" } : r
+                        )
+                      );
                     } catch (err) {
                       console.error("Failed to update status to Settled:", err);
                     }
                   }}
                 >
-                Settled
+                  Settled
                 </button>
               )}
             </div>
