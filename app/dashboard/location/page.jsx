@@ -407,7 +407,6 @@
 
 
 /* global Set */
-
 "use client";
 import React, { useEffect, useState, useRef, useMemo, useCallback } from "react";
 import {
@@ -429,9 +428,12 @@ import {
 } from "firebase/firestore";
 import { db } from "@/app/lib/firebaseConfig";
 import styles from "@/app/ui/dashboard/location/location.module.css";
-import ChatBox from "./chatbox/ChatBox";
+import dynamic from "next/dynamic";
 
-const containerStyle = { width: "100%", height: "50vh" };
+// Dynamically import ChatBox to avoid client-side crash
+const ChatBox = dynamic(() => import("./chatbox/ChatBox"), { ssr: false });
+
+const containerStyle = { width: "100%", height: "50dvh" }; // better mobile handling
 const center = { lat: 15.05, lng: 120.66 };
 const BUS_ICON_SIZE = 45;
 
@@ -468,8 +470,14 @@ export default function AdminBusLocationPage() {
   );
 
   useEffect(() => {
-    if (typeof window !== "undefined" && Notification.permission !== "granted") {
-      Notification.requestPermission();
+    if (typeof window !== "undefined" && "Notification" in window) {
+      try {
+        if (Notification.permission !== "granted") {
+          Notification.requestPermission();
+        }
+      } catch (err) {
+        console.error("Notification request error:", err);
+      }
     }
   }, []);
 
@@ -658,9 +666,7 @@ export default function AdminBusLocationPage() {
   const handleBusClick = useCallback((bus) => setSelectedBus(bus), []);
   const handleStopClick = useCallback((stop) => setSelectedStop(stop), []);
 
-  if (!isLoaded || typeof window === "undefined" || !window.google?.maps) {
-    return <div className={styles.loading}>Loading...</div>;
-  }
+  if (!isLoaded) return <div className={styles.loading}>Loading...</div>;
 
   return (
     <div className={styles.pageContainer}>
@@ -695,7 +701,7 @@ export default function AdminBusLocationPage() {
                 key={bus.id}
                 position={pos}
                 icon={
-                  window.google?.maps
+                  typeof window !== "undefined" && window.google?.maps
                     ? {
                         url: "/puj.png",
                         scaledSize: new window.google.maps.Size(BUS_ICON_SIZE, BUS_ICON_SIZE),
@@ -714,11 +720,7 @@ export default function AdminBusLocationPage() {
               <Marker
                 key={stop.id}
                 position={{ lat: stop.geo.latitude, lng: stop.geo.longitude }}
-                icon={
-                  window.google?.maps
-                    ? { url: "/stop-icon.png", scaledSize: new window.google.maps.Size(25, 25) }
-                    : undefined
-                }
+                icon={{ url: "/stop-icon.png", scaledSize: new window.google.maps.Size(25, 25) }}
                 zIndex={1}
                 onClick={() => handleStopClick(stop)}
               />
@@ -791,13 +793,11 @@ export default function AdminBusLocationPage() {
                 </table>
               </div>
             ) : (
-              <p className={styles.noData}>
-                No drivers have been idle report for this company.
-              </p>
+              <p className={styles.noData}>No drivers have been idle report for this company.</p>
             )}
 
             <div className={styles.ChatBox}>
-              <ChatBox companyID={expandedCompany} />
+              {typeof window !== "undefined" && <ChatBox companyID={expandedCompany} />}
             </div>
           </div>
         ) : (
