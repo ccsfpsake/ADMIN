@@ -197,8 +197,8 @@ export default function AdminBusLocationPage() {
   }, []);
 
   const getIdleMinutes = (bus) => {
-    if (bus.timestamp?.toDate) {
-      const diff = Date.now() - bus.timestamp.toDate().getTime();
+    if (bus.lastUpdated?.toDate) {
+      const diff = Date.now() - bus.lastUpdated.toDate().getTime();
       return Math.floor(diff / 60000);
     }
     return 0;
