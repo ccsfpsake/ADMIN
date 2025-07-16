@@ -16,7 +16,7 @@ import {
   getDocs,
 } from "firebase/firestore";
 import { db } from "@/app/lib/firebaseConfig";
-import styles from "@/app/ui/dashboard/drivers/board.module.css";
+import styles from "@/app/ui/dashboard/drivers/driversdashboard.module.css";
 import _ from "lodash";
 
 const containerStyle = { width: "100%", height: "50vh" };
