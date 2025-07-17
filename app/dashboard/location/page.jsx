@@ -228,7 +228,7 @@ export default function AdminBusLocationPage() {
 
       if (lat && lng) {
         const atCCSFP = isAtCCSFP_C3(lat, lng);
-        const threshold = atCCSFP ? 16 : 11;
+        const threshold = atCCSFP ? 16 : 5;
 
         if (mins >= threshold) {
           let label = getIdleTime(bus);

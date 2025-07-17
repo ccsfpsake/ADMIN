@@ -61,7 +61,7 @@ const RoutePage = () => {
 
     try {
       await setDoc(doc(db, "Lines", trimmedLine), { Lines: trimmedLine });
-      toast.success("Route successfully added to the database.");
+      toast.success("Route successfully added.");
       setNewLine("");
       setShowModal(false);
       fetchLines();

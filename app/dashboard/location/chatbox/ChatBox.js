@@ -18,7 +18,7 @@ import styles from "./chatbox.module.css";
 import { FaPaperPlane, FaDownload, FaTimes } from "react-icons/fa";
 import Image from "next/image";
 
-const ChatBoxOperator = ({ companyID }) => {
+const ChatBox = ({ companyID }) => {
   const [messages, setMessages] = useState([]);
   const [newMessage, setNewMessage] = useState("");
   const [typing, setTyping] = useState(false);
@@ -283,4 +283,4 @@ const ChatBoxOperator = ({ companyID }) => {
   );
 };
 
-export default ChatBoxOperator;
+export default ChatBox;

@@ -120,7 +120,7 @@ const Sidebar = ({ isSidebarOpen, toggleSidebar }) => {
 
       snapshot.forEach((doc) => {
         const data = doc.data();
-        const lastUpdate = data.timestamp?.toDate?.();
+        const lastUpdate = data.lastUpdated?.toDate?.();
         const idleTime = lastUpdate ? (now - lastUpdate.getTime()) / 60000 : 0;
 
         const lat = data.currentLocation?.latitude;
@@ -128,7 +128,7 @@ const Sidebar = ({ isSidebarOpen, toggleSidebar }) => {
 
         if (lat && lng) {
           const atCCSFP = isAtCCSFP_C3(lat, lng);
-          const threshold = atCCSFP ? 16 : 11;
+          const threshold = atCCSFP ? 16 : 5;
 
           if (idleTime >= threshold) {
             hasIdle = true;
