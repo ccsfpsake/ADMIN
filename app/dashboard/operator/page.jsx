@@ -74,7 +74,7 @@ const OperatorPage = () => {
         type: "status_update",
       });
 
-      toast.success(`Status for ${operatorFullName} updated to ${newStatus}`, {
+      toast.success(`Status updated to ${newStatus}`, {
         theme: "colored",
       });
     } catch (error) {
