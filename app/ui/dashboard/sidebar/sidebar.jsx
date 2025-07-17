@@ -316,7 +316,7 @@ const Sidebar = ({ isSidebarOpen, toggleSidebar }) => {
 
         if (lat && lng) {
           const atCCSFP = isAtCCSFP_C3(lat, lng);
-          const threshold = atCCSFP ? 16 : 5;
+          const threshold = atCCSFP ? 15 : 5;
 
           if (idleTime >= threshold) {
             hasIdle = true;
