@@ -42,6 +42,7 @@ export async function POST(request) {
       msg = {
         to,
         from: process.env.EMAIL_FROM,
+        replyTo: "sakeccsfp24@gmail.com",
         bcc: "ccsfpsake@gmail.com",
         subject: "Account Status Update - SAKE",
         html: `
@@ -78,6 +79,7 @@ export async function POST(request) {
       msg = {
         to,
         from: process.env.EMAIL_FROM,
+        replyTo: "sakeccsfp24@gmail.com",
         bcc: "ccsfpsake@gmail.com",
         subject: "Account Status Update - SAKE",
         html: `
