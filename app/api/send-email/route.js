@@ -1,6 +1,8 @@
 import sendgrid from "@sendgrid/mail";
 
 sendgrid.setApiKey(process.env.SENDGRID_API_KEY);
+console.log("API KEY present?", !!process.env.SENDGRID_API_KEY);
+console.log("EMAIL_FROM:", process.env.EMAIL_FROM);
 
 export async function POST(request) {
   try {
