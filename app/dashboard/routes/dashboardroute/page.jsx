@@ -21,7 +21,7 @@ import _ from "lodash";
 
 const containerStyle = { width: "100%", height: "50vh" };
 const center = { lat: 15.05, lng: 120.66 };
-const BUS_ICON_SIZE = 45;
+const BUS_ICON_SIZE = 35;
 
 const calculateBearing = (prevPos, newPos) => {
   const lat1 = (Math.PI * prevPos.lat) / 180;
@@ -189,7 +189,7 @@ export default function AdminBusLocationPage() {
                 key={bus.id}
                 position={pos}
                 icon={{
-                  url: "/puj.png",
+                  url: "/buss.png",
                   scaledSize: new window.google.maps.Size(BUS_ICON_SIZE, BUS_ICON_SIZE),
                   anchor: new window.google.maps.Point(BUS_ICON_SIZE / 2, BUS_ICON_SIZE / 2),
                 }}
@@ -209,7 +209,7 @@ export default function AdminBusLocationPage() {
                 }}
                 icon={{
                   url: "/stop-icon.png",
-                  scaledSize: new window.google.maps.Size(25, 25),
+                  scaledSize: new window.google.maps.Size(30, 30),
                 }}
                 zIndex={1}
                 onClick={() => handleStopClick(stop)}

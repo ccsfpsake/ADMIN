@@ -303,7 +303,7 @@ export default function AdminBusLocationPage() {
                 icon={
                   typeof window !== "undefined" && window.google?.maps
                     ? {
-                        url: "/puj.png",
+                        url: "/buss.png",
                         scaledSize: new window.google.maps.Size(BUS_ICON_SIZE, BUS_ICON_SIZE),
                         anchor: new window.google.maps.Point(BUS_ICON_SIZE / 2, BUS_ICON_SIZE / 2),
                       }
@@ -320,7 +320,7 @@ export default function AdminBusLocationPage() {
               <Marker
                 key={stop.id}
                 position={{ lat: stop.geo.latitude, lng: stop.geo.longitude }}
-                icon={{ url: "/stop-icon.png", scaledSize: new window.google.maps.Size(25, 25) }}
+                icon={{ url: "/stop-icon.png", scaledSize: new window.google.maps.Size(30, 30) }}
                 zIndex={1}
                 onClick={() => handleStopClick(stop)}
               />
