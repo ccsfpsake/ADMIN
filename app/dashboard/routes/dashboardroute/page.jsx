@@ -1,5 +1,4 @@
-/* global google */
-/* eslint-env es6 */
+/* global Set */
 "use client";
 import React, { useEffect, useState, useRef, useMemo, useCallback } from "react";
 import {
@@ -14,24 +13,17 @@ import {
   collectionGroup,
   onSnapshot,
   getDocs,
+  query,
+  orderBy,
+  doc,
+  updateDoc,
 } from "firebase/firestore";
 import { db } from "@/app/lib/firebaseConfig";
 import styles from "@/app/ui/dashboard/drivers/driversdashboard.module.css";
-import _ from "lodash";
 
 const containerStyle = { width: "100%", height: "50vh" };
 const center = { lat: 15.05, lng: 120.66 };
 const BUS_ICON_SIZE = 35;
-
-const calculateBearing = (prevPos, newPos) => {
-  const lat1 = (Math.PI * prevPos.lat) / 180;
-  const lat2 = (Math.PI * newPos.lat) / 180;
-  const dLng = (Math.PI * (newPos.lng - prevPos.lng)) / 180;
-  const y = Math.sin(dLng) * Math.cos(lat2);
-  const x =
-    Math.cos(lat1) * Math.sin(lat2) - Math.sin(lat1) * Math.cos(lat2) * Math.cos(dLng);
-  return ((Math.atan2(y, x) * 180) / Math.PI + 360) % 360;
-};
 
 export default function AdminBusLocationPage() {
   const { isLoaded } = useLoadScript({
@@ -42,10 +34,24 @@ export default function AdminBusLocationPage() {
   const [busStops, setBusStops] = useState([]);
   const [selectedStop, setSelectedStop] = useState(null);
   const [selectedBus, setSelectedBus] = useState(null);
-  const [map, setMap] = useState(null);
+  const [, setMap] = useState(null);
   const [zoom, setZoom] = useState(15);
-  const [searchTerm, setSearchTerm] = useState("");
+
   const busRefs = useRef({});
+
+  const mapOptions = useMemo(
+    () => ({
+      styles: [
+        { featureType: "poi", stylers: [{ visibility: "off" }] },
+        { featureType: "transit", stylers: [{ visibility: "off" }] },
+        { featureType: "road", elementType: "labels", stylers: [{ visibility: "simplified" }] },
+        { featureType: "administrative", stylers: [{ visibility: "off" }] },
+        { featureType: "landscape", stylers: [{ color: "#f5f5f5" }] },
+        { featureType: "water", stylers: [{ color: "#d6e9f8" }] },
+      ],
+    }),
+    []
+  );
 
   const fetchDriversStatus = async () => {
     const snapshot = await getDocs(collection(db, "Drivers"));
@@ -118,7 +124,6 @@ export default function AdminBusLocationPage() {
             name: data.name,
             locID: data.locID,
             geo: data.geo,
-            parentDocId: doc.ref.parent.parent?.id || "unknown",
           };
         });
         setBusStops(stops);
@@ -132,22 +137,23 @@ export default function AdminBusLocationPage() {
     };
   }, []);
 
-  useEffect(() => {
-    if (map) {
-      const zoomListener = _.debounce(() => setZoom(map.getZoom()), 200);
-      map.addListener("zoom_changed", zoomListener);
-      return () => google.maps.event.clearListeners(map, "zoom_changed");
+  const getIdleMinutes = (bus) => {
+    if (bus.lastUpdated?.toDate) {
+      const diff = Date.now() - bus.lastUpdated.toDate().getTime();
+      return Math.floor(diff / 60000);
     }
-  }, [map]);
+    return 0;
+  };
 
-  const filteredBuses = useMemo(() => {
-    return busLocations.filter(
-      (bus) =>
-        bus.driverID?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        bus.plateNumber?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        bus.companyID?.toLowerCase().includes(searchTerm.toLowerCase())
-    );
-  }, [busLocations, searchTerm]);
+  const getIdleTime = useCallback((bus) => {
+    const mins = getIdleMinutes(bus);
+    if (mins >= 60) {
+      const h = Math.floor(mins / 60);
+      const m = mins % 60;
+      return `Not moved for ${h} hour${h > 1 ? "s" : ""}${m > 0 ? ` ${m} min` : ""}`;
+    }
+    return mins > 0 ? `Not moved for ${mins} min` : "Moving";
+  }, []);
 
   const handleBusClick = useCallback((bus) => setSelectedBus(bus), []);
   const handleStopClick = useCallback((stop) => setSelectedStop(stop), []);
@@ -161,38 +167,37 @@ export default function AdminBusLocationPage() {
           mapContainerStyle={containerStyle}
           center={center}
           zoom={zoom}
-          onLoad={setMap}
-          options={{
-            styles: [
-              { featureType: "poi", stylers: [{ visibility: "off" }] },
-              { featureType: "transit", stylers: [{ visibility: "off" }] },
-              { featureType: "road", elementType: "labels", stylers: [{ visibility: "simplified" }] },
-              { featureType: "administrative", stylers: [{ visibility: "off" }] },
-              { featureType: "landscape", stylers: [{ color: "#f5f5f5" }] },
-              { featureType: "water", stylers: [{ color: "#d6e9f8" }] },
-            ],
+          onLoad={(mapInstance) => {
+            setMap(mapInstance);
+            setZoom(mapInstance.getZoom());
+
+            mapInstance.addListener("zoom_changed", () => {
+              setZoom(mapInstance.getZoom());
+            });
           }}
+          options={mapOptions}
         >
           <TrafficLayer />
-
-          {filteredBuses.map((bus) => {
+          {busLocations.map((bus) => {
             const pos = {
               lat: bus.currentLocation?.latitude ?? center.lat,
               lng: bus.currentLocation?.longitude ?? center.lng,
             };
-            const prevPos = busRefs.current[bus.id] || pos;
-            const angle = calculateBearing(prevPos, pos);
             busRefs.current[bus.id] = pos;
 
             return (
               <Marker
                 key={bus.id}
                 position={pos}
-                icon={{
-                  url: "/buss.png",
-                  scaledSize: new window.google.maps.Size(BUS_ICON_SIZE, BUS_ICON_SIZE),
-                  anchor: new window.google.maps.Point(BUS_ICON_SIZE / 2, BUS_ICON_SIZE / 2),
-                }}
+                icon={
+                  typeof window !== "undefined" && window.google?.maps
+                    ? {
+                        url: "/buss.png",
+                        scaledSize: new window.google.maps.Size(BUS_ICON_SIZE, BUS_ICON_SIZE),
+                        anchor: new window.google.maps.Point(BUS_ICON_SIZE / 2, BUS_ICON_SIZE / 2),
+                      }
+                    : undefined
+                }
                 zIndex={2}
                 onClick={() => handleBusClick(bus)}
               />
@@ -203,14 +208,8 @@ export default function AdminBusLocationPage() {
             busStops.map((stop) => (
               <Marker
                 key={stop.id}
-                position={{
-                  lat: stop.geo.latitude,
-                  lng: stop.geo.longitude,
-                }}
-                icon={{
-                  url: "/stop-icon.png",
-                  scaledSize: new window.google.maps.Size(30, 30),
-                }}
+                position={{ lat: stop.geo.latitude, lng: stop.geo.longitude }}
+                icon={{ url: "/stop-icon.png", scaledSize: new window.google.maps.Size(30, 30) }}
                 zIndex={1}
                 onClick={() => handleStopClick(stop)}
               />
@@ -222,10 +221,11 @@ export default function AdminBusLocationPage() {
               onCloseClick={() => setSelectedBus(null)}
             >
               <div>
-                <strong>Driver ID:</strong> {selectedBus.driverID || "N/A"} <br />
-                <strong>Plate Number:</strong> {selectedBus.plateNumber || "N/A"} <br />
-                <strong>Route:</strong> {selectedBus.route || "N/A"} <br />
-                <strong>Company:</strong> {selectedBus.companyID || "N/A"} <br />
+                <strong>Driver ID:</strong> {selectedBus.driverID} <br />
+                <strong>Plate Number:</strong> {selectedBus.plateNumber} <br />
+                <strong>Route:</strong> {selectedBus.route} <br />
+                <strong>Company:</strong> {selectedBus.companyID} <br />
+                <strong style={{ color: "blue" }}>{getIdleTime(selectedBus)}</strong>
               </div>
             </InfoWindow>
           )}
@@ -237,7 +237,7 @@ export default function AdminBusLocationPage() {
             >
               <div>
                 <strong>Location ID:</strong> {selectedStop.locID} <br />
-                <strong>Stop Name:</strong> {selectedStop.name} <br />
+                <strong>Stop Name:</strong> {selectedStop.name}
               </div>
             </InfoWindow>
           )}

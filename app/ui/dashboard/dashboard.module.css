@@ -71,7 +71,6 @@
   .driverColumn,
   .graph {
     flex-direction: column;
-    align-items: center;
   }
 
   .cards > div,

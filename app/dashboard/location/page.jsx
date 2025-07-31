@@ -27,7 +27,7 @@ const ChatBox = dynamic(() => import("./chatbox/ChatBox"), { ssr: false });
 
 const containerStyle = { width: "100%", height: "50dvh" }; // better mobile handling
 const center = { lat: 15.05, lng: 120.66 };
-const BUS_ICON_SIZE = 45;
+const BUS_ICON_SIZE = 35;
 
 export default function AdminBusLocationPage() {
   const { isLoaded } = useLoadScript({
