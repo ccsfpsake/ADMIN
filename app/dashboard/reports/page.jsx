@@ -120,7 +120,7 @@ const AdminReportPage = () => {
       const adminSeen = r.data.adminSeen ?? false;
       const msg = r.latestMessage;
 
-      // ✅ Updated: Removed check for selectedReport to make other reports trigger unread state
+      // Updated: Removed check for selectedReport to make other reports trigger unread state
       const unread =
         !adminSeen ||
         (msg?.senderRole === "operator" && !msg?.seen);
@@ -150,64 +150,92 @@ const AdminReportPage = () => {
 useEffect(() => {
   if (!selectedCompany) return;
 
-  const q = query(collection(db, "busReports"), where("companyID", "==", selectedCompany));
-  const unsubReports = onSnapshot(q, async (snapshot) => {
-    const reportPromises = snapshot.docs.map(async (docSnap) => {
-      const data = docSnap.data();
-      const reportID = docSnap.id;
-      const messagesRef = collection(db, "busReports", reportID, "messages");
+const q = query(collection(db, "busReports"), where("companyID", "==", selectedCompany));
+const unsubscribers = [];
 
-      try {
-        const msgSnap = await getDocs(query(messagesRef, orderBy("createdAt", "desc"), limit(1)));
-        const lastMessage = msgSnap.docs[0]?.data();
-        const latestTimestamp = lastMessage?.createdAt || data.createdAt || null;
+const reportsMap = {};
 
-        return {
-          id: reportID,
-          ...data,
-          latestActivity: latestTimestamp,
-          hasUnreadMessages:
-            !data.adminSeen ||
-            (lastMessage?.senderRole === "operator" &&
-             !lastMessage?.seen &&
-             selectedReport?.id !== reportID), 
-        };
-      } catch (err) {
-        console.error("Error fetching message for report:", reportID, err);
-        return {
-          id: reportID,
-          ...data,
-          latestActivity: data.createdAt || null,
-          hasUnreadMessages: !data.adminSeen,
-        };
-      }
+const unsubReports = onSnapshot(q, (snapshot) => {
+  snapshot.docs.forEach((docSnap) => {
+    const reportID = docSnap.id;
+    const data = docSnap.data();
+
+    if (!reportsMap[reportID]) {
+      reportsMap[reportID] = {
+        data,
+        latestMessage: null,
+      };
+    } else {
+      reportsMap[reportID].data = data;
+    }
+
+    // Listen to the report doc (for adminSeen/status)
+    const unsubDoc = onSnapshot(doc(db, "busReports", reportID), (docSnap) => {
+      reportsMap[reportID].data = docSnap.data();
+      updateReports();
     });
 
-    const resolvedReports = await Promise.all(reportPromises);
-
-    setReports(
-      resolvedReports.sort((a, b) => {
-        if (a.hasUnreadMessages && !b.hasUnreadMessages) return -1;
-        if (!a.hasUnreadMessages && b.hasUnreadMessages) return 1;
-
-        const timeA = a.latestActivity?.toMillis?.() || 0;
-        const timeB = b.latestActivity?.toMillis?.() || 0;
-        return timeB - timeA;
-      })
+    // Listen to latest message
+    const messagesRef = collection(db, "busReports", reportID, "messages");
+    const unsubMsg = onSnapshot(
+      query(messagesRef, orderBy("createdAt", "desc"), limit(1)),
+      (msgSnap) => {
+        const lastMsg = msgSnap.docs[0]?.data() || null;
+        reportsMap[reportID].latestMessage = lastMsg;
+        updateReports();
+      }
     );
+
+    unsubscribers.push(unsubDoc, unsubMsg);
+  });
+});
+
+unsubscribers.push(unsubReports);
+
+const updateReports = () => {
+  const updated = Object.keys(reportsMap).map((id) => {
+    const report = reportsMap[id];
+    const latest = report.latestMessage;
+    const data = report.data;
+
+    return {
+      id,
+      ...data,
+      latestActivity: latest?.createdAt || data.createdAt || null,
+      hasUnreadMessages:
+        !data.adminSeen ||
+        (latest?.senderRole === "operator" &&
+          !latest?.seen &&
+          selectedReport?.id !== id),
+    };
   });
 
-  return () => unsubReports();
+  setReports(
+    updated.sort((a, b) => {
+      if (a.hasUnreadMessages && !b.hasUnreadMessages) return -1;
+      if (!a.hasUnreadMessages && b.hasUnreadMessages) return 1;
+
+      const timeA = a.latestActivity?.toMillis?.() || 0;
+      const timeB = b.latestActivity?.toMillis?.() || 0;
+      return timeB - timeA;
+    })
+  );
+};
+
+return () => {
+  unsubscribers.forEach((unsub) => unsub());
+};
+
 }, [selectedCompany, selectedReport]);
 
     useEffect(() => {
       if (!selectedReport) return;
 
-      // ✅ Mark report as seen by admin
+      //  Mark report as seen by admin
       const markReportSeen = async () => {
         try {
           await updateDoc(doc(db, "busReports", selectedReport.id), { adminSeen: true });
-          // ✅ Update local state to remove "unread" status
+          //  Update local state to remove "unread" status
           setReports((prev) =>
             prev.map((r) =>
               r.id === selectedReport.id ? { ...r, hasUnreadMessages: false } : r
@@ -448,9 +476,9 @@ useEffect(() => {
               <div className={styles.reportInfoContainer}>
                 <div className={styles.reportText}>
                   <h3>Plate Number: {selectedReport.busPlateNumber}</h3>
+                  <p><strong>Date:</strong> {formatDate(selectedReport.createdAt)}</p>
                   <p><strong>Type:</strong> {selectedReport.reportType}</p>
                   <p><strong>Description:</strong> {selectedReport.description}</p>
-                  <p><strong>Date:</strong> {formatDate(selectedReport.createdAt)}</p>
                 </div>
                 
                   {selectedReport.imageUrl && (

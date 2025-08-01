@@ -21,7 +21,7 @@
     height: 300px;
 }
 
-/* ✅ Responsive Styles */
+/* Responsive Styles */
 @media (max-width: 600px) {
     .graphContainer {
         padding: 15px;

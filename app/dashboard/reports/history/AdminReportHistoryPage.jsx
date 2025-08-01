@@ -208,13 +208,13 @@ const AdminReportHistoryPage = () => {
             <div className={styles.reportInfoContainer}>
               <div className={styles.reportText}>
                 <h3>Plate Number: {selectedReport.busPlateNumber}</h3>
+                 <p><strong>Date:</strong> {formatDate(selectedReport.createdAt)}</p>
                 <p>
                   <strong>Type:</strong> {selectedReport.reportType}
                 </p>
                 <p>
                   <strong>Description:</strong> {selectedReport.description}
                 </p>
-                <p><strong>Date:</strong> {formatDate(selectedReport.createdAt)}</p>
               </div>
               {selectedReport.imageUrl && (
                 <div className={styles.reportImage}>
