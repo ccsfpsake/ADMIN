@@ -673,7 +673,7 @@ export default function AdminBusLocationPage() {
   const CCSFP_C3_LAT = 15.05871;
   const CCSFP_C3_LNG = 120.64442;
   const isAtCCSFP_C3 = (lat, lng) =>
-    Math.abs(lat - CCSFP_C3_LAT) < 0.0005 && Math.abs(lng - CCSFP_C3_LNG) < 0.0005;
+    Math.abs(lat - CCSFP_C3_LAT) < 0.0007 && Math.abs(lng - CCSFP_C3_LNG) < 0.0007;
 
 const idleBusesByCompany = useMemo(() => {
   const grouped = {};
