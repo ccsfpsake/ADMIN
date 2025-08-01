@@ -1,8 +1,11 @@
 .chatWrapper {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  max-height: 600px;
   background-color: var(--bgSoft);
   padding: 1rem;
   border-radius: 15px;
-  margin: 1rem auto;
   width: 100%;
   border: 1px solid #4e97da;
   box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
@@ -22,8 +25,6 @@
 .chatBox {
   flex: 1;
   overflow-y: auto;
-  height: 100%;
-  max-height: 400px;
   padding: 1rem;
   background-color: #fff;
   border: 1px solid #ccc;
@@ -53,6 +54,22 @@
   display: inline-block;
 }
 
+.left .messageBubble {
+  background-color: #e2e2e2;
+}
+
+.messageBubble img {
+  margin-top: 5px;
+  max-width: 200px;
+  border-radius: 10px;
+  cursor: pointer;
+  display: block;
+}
+
+.messageBubble p {
+  margin: 0;
+}
+
 .media {
   width: 100%;
   height: auto;
@@ -70,24 +87,17 @@
   margin-top: 8px;
   word-break: break-word;
   cursor: pointer;
+  background: #f0f0f0;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
 }
 
-.left .messageBubble {
-  background-color: #e2e2e2;
-}
-
-.messageBubble img {
-  margin-top: 5px;
-  max-width: 200px;
-  border-radius: 10px;
+.docContainer span {
+  color: #007bff;
+  text-decoration: underline;
   cursor: pointer;
-  display: block;
 }
-
-.messageBubble p {
-  margin: 0;
-}
-
 
 .timestampTopCenter {
   font-size: 0.75rem;
@@ -127,9 +137,7 @@
   display: flex;
   align-items: flex-end;
   gap: 0.5rem;
-  padding-top: 0.5rem;
-  position: sticky;
-  bottom: 0;
+  padding: 0.75rem 1rem;
   background-color: #fff;
   z-index: 10;
   border-top: 1px solid #ddd;
@@ -146,13 +154,15 @@
   overflow-y: auto;
   font-family: inherit;
 }
+
 .inputArea textarea:focus,
 .inputArea button:focus {
   outline: 2px solid #4e97da;
 }
+
 .sendButton,
 .addButton {
- padding: 0.5rem;
+  padding: 0.5rem;
   border: none;
   border-radius: 8px;
   color: white;
@@ -173,6 +183,12 @@
 .sendButton:disabled {
   background-color: #aaa;
   cursor: not-allowed;
+}
+
+.noData {
+  font-size: 0.95rem;
+  color: #64748b;
+  margin: 10px 0;
 }
 
 .previewAttachment {
@@ -197,19 +213,16 @@
   object-fit: cover;
 }
 
-/* Add this for text-based previews (like doc names) */
 .previewAttachment p {
   margin: 0;
   word-break: break-word;
 }
 
-/* Optional: a small filename label */
 .filenameLabel {
   flex-grow: 1;
   font-weight: 500;
 }
 
-/* Remove (X) button styling */
 .removePreviewButton {
   position: absolute;
   top: 6px;
@@ -231,7 +244,6 @@
   background: rgba(0, 0, 0, 0.8);
 }
 
-
 .modalOverlay {
   position: fixed;
   top: 0;
@@ -246,13 +258,12 @@
 }
 
 .modalContent {
-    position: relative;
-    background: white;
-    padding: 1rem;
-    border-radius: 8px;
-    overflow: auto;
-    margin: 5px;
-
+  position: relative;
+  background: white;
+  padding: 1rem;
+  border-radius: 8px;
+  overflow: auto;
+  margin: 5px;
 }
 
 .modalContent img,
@@ -290,26 +301,12 @@
   background-color: rgba(0, 0, 0, 0.8);
 }
 
-.docContainer {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  background: #f0f0f0;
-  padding: 0.5rem;
-  border-radius: 8px;
-  margin-top: 0.5rem;
-}
-
-.docContainer span {
-  cursor: pointer;
-  color: #007bff;
-  text-decoration: underline;
-}
-
 .fullMedia {
   max-width: 90vw;
   max-height: 80vh;
 }
+
+/* Responsive */
 @media (max-width: 768px) {
   .chatWrapper {
     padding: 0.75rem;
@@ -365,7 +362,7 @@
   .typingIndicator {
     font-size: 0.8rem;
   }
-@media (max-width: 480px) {
+
   .modalContent {
     width: 90vw;
     max-height: 80vh;
@@ -392,9 +389,6 @@
     width: 28px;
     height: 28px;
   }
-}
-
-
 }
 
 @media (max-width: 360px) {
@@ -448,4 +442,3 @@
     font-size: 0.75rem;
   }
 }
-

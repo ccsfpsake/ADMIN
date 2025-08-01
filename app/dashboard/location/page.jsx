@@ -1,3 +1,5 @@
+
+
 /* global Set */
 "use client";
 import React, { useEffect, useState, useRef, useMemo, useCallback } from "react";
@@ -21,11 +23,11 @@ import {
 import { db } from "@/app/lib/firebaseConfig";
 import styles from "@/app/ui/dashboard/location/location.module.css";
 import dynamic from "next/dynamic";
+import Pagination from "@/app/ui/dashboard/pagination/pagination";
 
-// Dynamically import ChatBox to avoid client-side crash
 const ChatBox = dynamic(() => import("./chatbox/ChatBox"), { ssr: false });
 
-const containerStyle = { width: "100%", height: "50dvh" }; // better mobile handling
+const containerStyle = { width: "100%", height: "50dvh" };
 const center = { lat: 15.05, lng: 120.66 };
 const BUS_ICON_SIZE = 35;
 
@@ -44,22 +46,21 @@ export default function AdminBusLocationPage() {
   const [expandedCompany, setExpandedCompany] = useState(null);
   const [hasUnreadMessages, setHasUnreadMessages] = useState({});
   const [allCompanyIDs, setAllCompanyIDs] = useState([]);
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 7;
 
   const busRefs = useRef({});
 
-  const mapOptions = useMemo(
-    () => ({
-      styles: [
-        { featureType: "poi", stylers: [{ visibility: "off" }] },
-        { featureType: "transit", stylers: [{ visibility: "off" }] },
-        { featureType: "road", elementType: "labels", stylers: [{ visibility: "simplified" }] },
-        { featureType: "administrative", stylers: [{ visibility: "off" }] },
-        { featureType: "landscape", stylers: [{ color: "#f5f5f5" }] },
-        { featureType: "water", stylers: [{ color: "#d6e9f8" }] },
-      ],
-    }),
-    []
-  );
+  const mapOptions = useMemo(() => ({
+    styles: [
+      { featureType: "poi", stylers: [{ visibility: "off" }] },
+      { featureType: "transit", stylers: [{ visibility: "off" }] },
+      { featureType: "road", elementType: "labels", stylers: [{ visibility: "simplified" }] },
+      { featureType: "administrative", stylers: [{ visibility: "off" }] },
+      { featureType: "landscape", stylers: [{ color: "#f5f5f5" }] },
+      { featureType: "water", stylers: [{ color: "#d6e9f8" }] },
+    ],
+  }), []);
 
   useEffect(() => {
     if (typeof window !== "undefined" && "Notification" in window) {
@@ -280,14 +281,12 @@ export default function AdminBusLocationPage() {
           onLoad={(mapInstance) => {
             setMap(mapInstance);
             setZoom(mapInstance.getZoom());
-
             mapInstance.addListener("zoom_changed", () => {
               setZoom(mapInstance.getZoom());
             });
           }}
           options={mapOptions}
         >
-
           <TrafficLayer />
           {filteredBuses.map((bus) => {
             const pos = {
@@ -359,54 +358,71 @@ export default function AdminBusLocationPage() {
         <h3>Idle Time Report</h3>
 
         {expandedCompany ? (
-          <div className={styles.idleCard}>
-            <button
-              onClick={() => setExpandedCompany(null)}
-              className={styles.idleCardButtons}
-            >
-              {expandedCompany} ({(idleBusesByCompany[expandedCompany] || []).length})
-            </button>
+          <>
+<div className={styles.flexWrapper}>
+  <div className={styles.idleCard}>
+    <button
+      onClick={() => setExpandedCompany(null)}
+      className={styles.idleCardButtons}
+    >
+      {expandedCompany} ({(idleBusesByCompany[expandedCompany] || []).length})
+    </button>
 
-            {(idleBusesByCompany[expandedCompany] || []).length > 0 ? (
-              <div className={styles.idleTableWrapper}>
-                <table className={styles.idleTable}>
-                  <thead>
-                    <tr>
-                      <th>Company ID</th>
-                      <th>Driver ID</th>
-                      <th>Plate Number</th>
-                      <th>Status</th>
-                      <th>Idle Time</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {idleBusesByCompany[expandedCompany].map((bus) => (
-                      <tr key={bus.id}>
-                        <td>{bus.companyID}</td>
-                        <td>{bus.driverID}</td>
-                        <td>{bus.plateNumber}</td>
-                        <td>{bus.status}</td>
-                        <td>{bus.idleLabel || getIdleTime(bus)}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            ) : (
-              <p className={styles.noData}>No drivers have been idle report for this company.</p>
-            )}
+    {(idleBusesByCompany[expandedCompany] || []).length > 0 ? (
+      <>
+        <div className={styles.idleTableWrapper}>
+          <table className={styles.idleTable}>
+            <thead>
+              <tr>
+                <th>Company ID</th>
+                <th>Driver ID</th>
+                <th>Plate Number</th>
+                <th>Idle Time</th>
+              </tr>
+            </thead>
+            <tbody>
+              {idleBusesByCompany[expandedCompany]
+                .slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage)
+                .map((bus) => (
+                  <tr key={bus.id}>
+                    <td>{bus.companyID}</td>
+                    <td>{bus.driverID}</td>
+                    <td>{bus.plateNumber}</td>
+                    <td style={{ color: "blue" }}>{bus.idleLabel}</td>
+                  </tr>
+                ))}
+            </tbody>
+          </table>
+        </div>
+        <Pagination
+          currentPage={currentPage}
+          totalPages={Math.ceil(
+            (idleBusesByCompany[expandedCompany] || []).length / itemsPerPage
+          )}
+          onPageChange={setCurrentPage}
+        />
+      </>
+    ) : (
+      <p className={styles.noData}>No drivers have been idle for this company.</p>
+    )}
+  </div>
 
-            <div className={styles.ChatBox}>
-              {typeof window !== "undefined" && <ChatBox companyID={expandedCompany} />}
-            </div>
-          </div>
+  <div className={styles.chatWrapper}>
+    <ChatBox companyID={expandedCompany} />
+  </div>
+</div>
+
+          </>
         ) : (
           allCompanyIDs.map((companyID) => {
             const buses = idleBusesByCompany[companyID] || [];
             return (
               <div key={companyID} className={styles.idleCard}>
                 <button
-                  onClick={() => setExpandedCompany(companyID)}
+                  onClick={() => {
+                    setExpandedCompany(companyID);
+                    setCurrentPage(1);
+                  }}
                   className={styles.idleCardButtons}
                 >
                   {companyID} ({buses.length})
@@ -415,10 +431,13 @@ export default function AdminBusLocationPage() {
                   )}
                 </button>
               </div>
+              
             );
           })
         )}
       </div>
+      
     </div>
   );
 }
+

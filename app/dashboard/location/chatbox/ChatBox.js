@@ -11,7 +11,7 @@ import {
   updateDoc,
   setDoc,
 } from "firebase/firestore";
-import { getStorage, ref, uploadBytes, getDownloadURL } from "firebase/storage"; // ✅ ADD
+import { getStorage, ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { db } from "@/app/lib/firebaseConfig";
 import moment from "moment";
 import styles from "./chatbox.module.css";
@@ -90,7 +90,6 @@ const ChatBox = ({ companyID }) => {
     let docUrl = "";
     let filename = "";
 
-    // ✅ Upload to Firebase Storage if file exists
     if (file) {
       try {
         const storage = getStorage();
@@ -152,64 +151,68 @@ const ChatBox = ({ companyID }) => {
     <div className={styles.chatWrapper}>
       <div className={styles.chatHeader}>Chat with {companyID}</div>
       <div className={styles.chatBox}>
-        {messages.map((msg, i) => {
-          const prev = messages[i - 1];
-          const isOperator = msg.senderRole === "operator";
-          const isLastOperatorMsg = isOperator && i === messages.length - 1;
+        {messages.length === 0 ? (
+          <div className={styles.noData}>No messages yet. Start the conversation!</div>
+        ) : (
+          messages.map((msg, i) => {
+            const prev = messages[i - 1];
+            const isOperator = msg.senderRole === "operator";
+            const isLastOperatorMsg = isOperator && i === messages.length - 1;
 
-          return (
-            <div key={msg.id}>
-              {shouldShowDate(msg.createdAt, prev?.createdAt) && (
-                <div className={styles.dateDivider}>{formatDate(msg.createdAt)}</div>
-              )}
-              {visibleTimestamps.includes(msg.id) && (
-                <div className={styles.timestampTopCenter}>{formatTime(msg.createdAt)}</div>
-              )}
-              <div
-                className={`${styles.messageRow} ${isOperator ? styles.right : styles.left}`}
-                onClick={() => toggleTimestamp(msg.id)}
-              >
-                <div className={styles.messageBubble}>
-                  {msg.text && <p>{msg.text}</p>}
-                  {msg.imageUrl && (
-                    <Image
-                      src={msg.imageUrl}
-                      alt="Message Image"
-                      width={300}
-                      height={200}
-                      className={styles.media}
-                      onClick={() => {
-                        setModalSrc(msg.imageUrl);
-                        setModalType("image");
-                      }}
-                      unoptimized
-                    />
-                  )}
-                  {msg.docUrl && (
-                    <div className={styles.docContainer}>
-                      <span
+            return (
+              <div key={msg.id}>
+                {shouldShowDate(msg.createdAt, prev?.createdAt) && (
+                  <div className={styles.dateDivider}>{formatDate(msg.createdAt)}</div>
+                )}
+                {visibleTimestamps.includes(msg.id) && (
+                  <div className={styles.timestampTopCenter}>{formatTime(msg.createdAt)}</div>
+                )}
+                <div
+                  className={`${styles.messageRow} ${isOperator ? styles.right : styles.left}`}
+                  onClick={() => toggleTimestamp(msg.id)}
+                >
+                  <div className={styles.messageBubble}>
+                    {msg.text && <p>{msg.text}</p>}
+                    {msg.imageUrl && (
+                      <Image
+                        src={msg.imageUrl}
+                        alt="Message Image"
+                        width={300}
+                        height={200}
+                        className={styles.media}
                         onClick={() => {
-                          setModalSrc(msg.docUrl);
-                          setModalFileName(msg.filename);
-                          setModalType("document");
+                          setModalSrc(msg.imageUrl);
+                          setModalType("image");
                         }}
-                      >
-                        {msg.filename || "Open Document"}
-                      </span>
-                    </div>
-                  )}
+                        unoptimized
+                      />
+                    )}
+                    {msg.docUrl && (
+                      <div className={styles.docContainer}>
+                        <span
+                          onClick={() => {
+                            setModalSrc(msg.docUrl);
+                            setModalFileName(msg.filename);
+                            setModalType("document");
+                          }}
+                        >
+                          {msg.filename || "Open Document"}
+                        </span>
+                      </div>
+                    )}
+                  </div>
                 </div>
+                {isLastOperatorMsg && (
+                  <div className={styles.statusBottom}>
+                    {msg.status === "sending" && <span>Sending...</span>}
+                    {msg.status === "delivered" && !msg.seen && <span>Delivered</span>}
+                    {msg.seen && <span>Seen</span>}
+                  </div>
+                )}
               </div>
-              {isLastOperatorMsg && (
-                <div className={styles.statusBottom}>
-                  {msg.status === "sending" && <span>Sending...</span>}
-                  {msg.status === "delivered" && !msg.seen && <span>Delivered</span>}
-                  {msg.seen && <span>Seen</span>}
-                </div>
-              )}
-            </div>
-          );
-        })}
+            );
+          })
+        )}
         {typing && <div className={styles.typingIndicator}>typing...</div>}
         <div ref={chatEndRef} />
       </div>
